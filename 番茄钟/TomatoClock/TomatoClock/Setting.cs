@@ -1,0 +1,139 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.IO;
+using System.Windows.Forms;
+using System.Media;
+using TomatoClock.Service;
+
+namespace TomatoClock
+{
+    public partial class Setting : Form
+    {
+        private SoundPlayer AlarmBell;
+        string Title1;
+        public Setting()
+        {
+            InitializeComponent(); 
+        }
+        private void UserControl1_Load(object sender, EventArgs e)
+        {
+            this.Left = Convert.ToInt32(1096);
+            this.Top = Convert.ToInt32(60);
+            timer2.Interval = 990;
+            timer2.Enabled = true;
+            ToolTip testTip = new ToolTip();
+            testTip.IsBalloon = true;
+            testTip.SetToolTip(TestButton, "测试选择的音乐是否可用");           
+            UserDataServiceDetails osd = new UserDataServiceDetails();
+            DataSet ds = osd.GetMusic_pathList();
+            string music_path = ds.Tables[0].Rows[0]["Music_path"].ToString();
+            if(music_path == "")  
+            {
+                string filename = "alarm.wav";
+                this.PathBox.Text = Path.GetFullPath(filename);
+            }
+            else { this.PathBox.Text = music_path; }
+        }
+        UserDataServiceDetails osd = new UserDataServiceDetails();
+        private void SetButton_Click(object sender, EventArgs e)
+        {
+            Entity.UserData others = new Entity.UserData();
+            others.Music_path = this.PathBox.Text;
+            others.Music_path = this.PathBox.Text;
+            osd.UpdateMusic(others);
+        }
+        private void TestAlarmBell()
+        {
+            if (TestButton.Text == "测试")
+            {
+                AlarmBell = new SoundPlayer();
+                AlarmBell.SoundLocation = PathBox.Text.Trim();
+                try
+                {
+                    TestButton.Enabled = true;
+                    AlarmBell.PlayLooping();
+                    TestButton.Text = "停止";
+                    SelectButton.Enabled = false;
+                }
+                catch (Exception)
+                {
+                    SystemSounds.Hand.Play();
+                    MessageBox.Show("无效闹钟铃声！", "警告");
+                    AlarmBell.Dispose();
+                    TestButton.Text = "测试";
+                    SelectButton.Enabled = true;
+                }
+            }
+            else
+            {
+                try
+                {
+                    AlarmBell.Stop();
+                    AlarmBell.Dispose();
+                }
+                catch (Exception)
+                {
+                    SystemSounds.Hand.Play();
+                    MessageBox.Show("未知错误！", "提示");
+                }
+                finally
+                {
+                    TestButton.Text = "测试";
+                    SelectButton.Enabled = true;
+                }
+            }
+        }
+        private void SelectButton_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.InitialDirectory = PathBox.Text;//默认打开目录
+            ofd.Filter = "铃声文件|*.wav";  //显示的文件类型
+            ofd.RestoreDirectory = true;  //对话框记忆之前打开的目录
+            ofd.FilterIndex = 1;  //文件类型的显示顺序
+            if (ofd.ShowDialog() == DialogResult.OK)  //选中文件
+            {
+                string BellPath = ofd.FileName;
+                PathBox.Text = BellPath;
+            }
+        }
+        private void PlayAlarmBell()
+        {
+            AlarmBell = new SoundPlayer();
+            AlarmBell.SoundLocation = PathBox.Text.Trim();
+                AlarmBell.PlayLooping();
+                DialogResult res = MessageBox.Show(Title1+"提醒时间到了",
+                "提示");
+                if (res == DialogResult.OK)
+                {
+                    AlarmBell.Stop();
+                    AlarmBell.Dispose();
+                }
+        }
+        private void TestButton_Click(object sender, EventArgs e)
+        {
+            TestAlarmBell();
+        }
+        private void timer2_Tick(object sender, EventArgs e)
+        {
+            TasksService ts = new TasksService();
+            DataSet ds2 = ts.GetOrderedListByDateTime("State like '未完成' ");
+            DateTime AlarmTime = DateTime.Parse(ds2.Tables[0].Rows[0]["DateTime"].ToString());
+            Title1 = ds2.Tables[0].Rows[0]["Title"].ToString();
+            int Year1 = AlarmTime.Year;
+            int Month1 = AlarmTime.Month;
+            int Day1 = AlarmTime.Day;
+            int Hour1 = AlarmTime.Hour;
+            int Minute1 = AlarmTime.Minute;
+            int Second1 = AlarmTime.Second;
+            if (DateTime.Now.Year == Year1 && DateTime.Now.Month == Month1  && DateTime.Now.Day == Day1&&DateTime.Now.Hour == Hour1  && DateTime.Now.Minute == Minute1 && DateTime.Now.Second == Second1 )
+            {
+                PlayAlarmBell();
+            }
+        }
+    }
+    }
